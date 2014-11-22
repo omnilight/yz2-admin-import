@@ -1,0 +1,23 @@
+{
+    "name": "omnilight/yz2-admin-import",
+    "description": "Support for batch importing for Yz2",
+    "keywords": ["yii2", "phone", "mobile"],
+    "minimum-stability": "dev",
+    "authors": [
+        {
+            "name": "Pavel Agalecky",
+            "email": "pavel.agalecky@gmail.com"
+        }
+    ],
+    "type": "yii2-extension",
+    "require": {
+        "php": ">=5.4.0",
+        "yiisoft/yii2": "*"
+    },
+    "autoload": {
+        "psr-4": { "yz\\admin\\import": "" }
+    },
+    "extra": {
+        "bootstrap": "yz\\admin\\import\\Bootstrap"
+    }
+}
