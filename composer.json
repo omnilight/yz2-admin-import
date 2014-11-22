@@ -1,7 +1,7 @@
 {
     "name": "omnilight/yz2-admin-import",
     "description": "Support for batch importing for Yz2",
-    "keywords": ["yii2", "phone", "mobile"],
+    "keywords": ["yii2", "yz2", "admin", "import"],
     "minimum-stability": "dev",
     "authors": [
         {
