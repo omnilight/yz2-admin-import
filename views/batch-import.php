@@ -33,7 +33,15 @@ $this->params['header'] = $this->title;
 
     <?= $form->field($model, 'file')->fileInput() ?>
     <?= $form->field($model, 'encoding')->dropDownList($model->getEncodingValues()) ?>
-    <?= $form->field($model, 'fields')->textInput() ?>
+    <?php
+    $hint = Html::tag('p', Yii::t('admin/import', 'Available fields:'));
+    $fields = $model->availableFields;
+    array_walk($fields, function (&$item, $key) {
+        $item = Html::tag('strong', $key) . ' - ' . $item;
+    });
+    $hint .= Html::beginTag('p') . implode('</p><p>', $fields);
+    ?>
+    <?= $form->field($model, 'fields')->hint($hint)->textInput() ?>
     <?= $form->field($model, 'skipFirstLine')->checkbox() ?>
     <?= $form->field($model, 'separator')->textInput() ?>
 

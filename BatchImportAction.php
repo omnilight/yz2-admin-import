@@ -20,13 +20,9 @@ class BatchImportAction extends Action
      */
     public $view = '@yz/admin/import/views/batch-import.php';
     /**
-     * @var string Import form class
+     * @var string Import configuration. Required field is 'availableFields'
      */
-    public $formClass = 'yz\admin\import\ImportForm';
-    /**
-     * @var array Fields available for user
-     */
-    public $availableFields;
+    public $importConfig = [];
     /**
      * @var array|string Where to redirect after successful upload
      */
@@ -35,11 +31,11 @@ class BatchImportAction extends Action
     public function run()
     {
         /** @var ImportForm $model */
-        $model = new $this->formClass;
-        $model->availableFields = array_keys($this->availableFields);
-        $model->fields = implode(', ', array_keys($this->availableFields));
+        $model = \Yii::createObject(array_merge([
+            'class' => 'yz\admin\import\ImportForm',
+        ], $this->importConfig));
 
-        if ($model->load(\Yii::$app->request->post())) {
+        if ($model->load(\Yii::$app->request->post()) && $model->process()) {
             return $this->controller->redirect($this->redirectAfterImport);
         }
 

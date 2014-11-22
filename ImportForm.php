@@ -2,12 +2,18 @@
 
 namespace yz\admin\import;
 
+use Goodby\CSV\Import\Standard\Interpreter;
+use Goodby\CSV\Import\Standard\Lexer;
+use Goodby\CSV\Import\Standard\LexerConfig;
+use yii\base\InvalidConfigException;
 use yii\base\Model;
 use yii\web\UploadedFile;
 
 
 /**
  * Class ImportForm
+ *
+ * @property array $fieldsArray
  */
 class ImportForm extends Model
 {
@@ -35,9 +41,47 @@ class ImportForm extends Model
      */
     public $separator = ';';
     /**
-     * @var array Fields available for import
+     * @var array Fields available for user
      */
     public $availableFields;
+    /**
+     * @var callable Format:
+     * ```php
+     * function (ImportForm $form) {
+     *
+     * }
+     * ```
+     */
+    public $beforeImport;
+    /**
+     * @var callable Format:
+     * ```php
+     * function (ImportForm $form, array $row) {
+     *
+     * }
+     * ```
+     */
+    public $rowImport;
+    /**
+     * @var callable Format:
+     * ```php
+     * function (ImportForm $form) {
+     *
+     * }
+     * ```
+     */
+    public $afterImport;
+
+    public function init()
+    {
+        if ($this->availableFields === null) {
+            throw new InvalidConfigException('Available fields are not defined');
+        }
+        if ($this->fields === null) {
+            $this->fields = implode(', ', array_keys($this->availableFields));
+        }
+    }
+
 
     public function attributeLabels()
     {
@@ -71,13 +115,67 @@ class ImportForm extends Model
 
     public function process()
     {
-        if ($this->validate()) {
-
-
+        if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
+            $lexer = new Lexer((new LexerConfig())
+                    ->setDelimiter($this->separator)
+                    ->setIgnoreHeaderLine($this->skipFirstLine)
+                    ->setFromCharset($this->encoding)
+            );
+            $interpreter = new Interpreter();
+            $interpreter->unstrict();
+            $interpreter->addObserver(function ($row) {
+                $row = self::compose($row);
+                $this->callHandler('rowImport', [$this, $row]);
+            });
+            $lexer->parse($this->file->tempName, $interpreter);
+            $this->callHandler('afterImport', [$this]);
 
             return true;
         } else {
             return false;
         }
+    }
+
+    /**
+     * @param callable $handler
+     * @param array $data
+     * @return bool
+     */
+    protected function callHandler($handler, $data)
+    {
+        if ($this->{$handler} === null)
+            return true;
+
+        return call_user_func_array($this->{$handler}, $data);
+    }
+
+    protected $_fieldsArray = [];
+
+    /**
+     * @return array
+     */
+    public function getFieldsArray()
+    {
+        if (!isset($this->_fieldsArray[$this->fields])) {
+            $this->_fieldsArray[$this->fields] = preg_split('/\s*[,;]\s*/', $this->fields, -1, PREG_SPLIT_NO_EMPTY);
+        }
+        return $this->_fieldsArray[$this->fields];
+    }
+
+    /**
+     * @param array $row
+     * @return array
+     */
+    protected function compose($row)
+    {
+        $result = [];
+        foreach ($this->fieldsArray as $name => $id) {
+            if (isset($row[$id])) {
+                $result[$name] = $row[$id];
+            } else {
+                $result[$name] = null;
+            }
+        }
+        return $result;
     }
 } 
