@@ -15,7 +15,7 @@
         "yiisoft/yii2": "*"
     },
     "autoload": {
-        "psr-4": { "yz\\admin\\import": "" }
+        "psr-4": { "yz\\admin\\import\\": "" }
     },
     "extra": {
         "bootstrap": "yz\\admin\\import\\Bootstrap"
