@@ -12,7 +12,8 @@
     "type": "yii2-extension",
     "require": {
         "php": ">=5.4.0",
-        "yiisoft/yii2": "*"
+        "yiisoft/yii2": "*",
+        "goodby/csv": "*"
     },
     "autoload": {
         "psr-4": { "yz\\admin\\import\\": "" }

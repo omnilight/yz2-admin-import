@@ -1,6 +1,6 @@
 <?php
 
-namespace omnilight\tokens;
+namespace yz\admin\import;
 
 use yii\base\Application;
 use yii\base\BootstrapInterface;
