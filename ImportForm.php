@@ -5,6 +5,7 @@ namespace yz\admin\import;
 use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
+use yii\base\Exception;
 use yii\base\InvalidConfigException;
 use yii\base\Model;
 use yii\web\UploadedFile;
@@ -19,7 +20,7 @@ use yii\web\UploadedFile;
 class ImportForm extends Model
 {
     const ENCODING_UTF8 = 'utf8';
-    const ENCODING_CP1251 = 'windows1251';
+    const ENCODING_CP1251 = 'cp1251';
 
     /**
      * @var UploadedFile
@@ -92,7 +93,7 @@ class ImportForm extends Model
     {
         return [
             [['file', 'encoding', 'fields', 'separator',], 'required'],
-            [['file'], 'file', 'extensions' => ['csv']],
+            [['file'], 'file', 'extensions' => ['csv'], 'checkExtensionByMimeType' => false],
             [['skipFirstLine'], 'boolean'],
             [['separator'], 'string', 'length' => 1],
             [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
@@ -114,6 +115,7 @@ class ImportForm extends Model
 
     public static function getEncodingValues()
     {
+
         return [
             self::ENCODING_UTF8 => \Yii::t('admin/import', 'UTF-8'),
             self::ENCODING_CP1251 => \Yii::t('admin/import', 'Windows-1251'),
@@ -138,6 +140,7 @@ class ImportForm extends Model
                     ->setDelimiter($this->separator)
                     ->setIgnoreHeaderLine($this->skipFirstLine)
                     ->setFromCharset($this->encoding)
+                    ->setToCharset('utf8')
             );
             $interpreter = new Interpreter();
             $interpreter->unstrict();
@@ -146,7 +149,15 @@ class ImportForm extends Model
                 $this->callHandler('rowImport', [$this, $row]);
                 $this->_importCounter++;
             });
-            $lexer->parse($this->file->tempName, $interpreter);
+            $transaction = \Yii::$app->db->beginTransaction();
+            try {
+                $lexer->parse($this->file->tempName, $interpreter);
+                $transaction->commit();
+            } catch (Exception $e) {
+                $transaction->rollBack();
+                throw $e;
+            }
+
             $this->callHandler('afterImport', [$this]);
 
             return true;
@@ -188,7 +199,7 @@ class ImportForm extends Model
     protected function compose($row)
     {
         $result = [];
-        foreach ($this->fieldsArray as $name => $id) {
+        foreach ($this->fieldsArray as $id => $name) {
             if (isset($row[$id])) {
                 $result[$name] = $row[$id];
             } else {
