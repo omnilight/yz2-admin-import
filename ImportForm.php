@@ -37,7 +37,7 @@ class ImportForm extends Model
     /**
      * @var bool If to skip first line that contains header
      */
-    public $skipFirstLine = true;
+    public $skipFirstLine = false;
     /**
      * @var string Separator
      */
@@ -117,8 +117,8 @@ class ImportForm extends Model
     {
 
         return [
-            self::ENCODING_UTF8 => \Yii::t('admin/import', 'UTF-8'),
             self::ENCODING_CP1251 => \Yii::t('admin/import', 'Windows-1251'),
+            self::ENCODING_UTF8 => \Yii::t('admin/import', 'UTF-8'),
         ];
     }
 
