@@ -27,4 +27,6 @@ return [
     'UTF-8' => '',
     'Upload and Import' => 'Загрузить и Импортировать',
     'Windows-1251' => '',
+    'Import have been done successfully. Total imported records: {total}' => 'Импорт успешно завершен. Всего импортировано записей: {total}',
+    'Available fields:' => 'Доступные поля: ',
 ];

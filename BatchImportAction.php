@@ -4,6 +4,7 @@ namespace yz\admin\import;
 
 use yii\base\Action;
 use yii\web\Controller;
+use yz\Yz;
 
 
 /**
@@ -19,6 +20,10 @@ class BatchImportAction extends Action
      * @var string View used for the action
      */
     public $view = '@yz/admin/import/views/batch-import.php';
+    /**
+     * @var string Extra view that can be used to append fields. Passed variables are $form and $model
+     */
+    public $extraView;
     /**
      * @var string Import configuration. Required field is 'availableFields'
      */
@@ -36,11 +41,15 @@ class BatchImportAction extends Action
         ], $this->importConfig));
 
         if ($model->load(\Yii::$app->request->post()) && $model->process()) {
+            \Yii::$app->session->setFlash(Yz::FLASH_INFO, \Yii::t('admin/import', 'Import have been done successfully. Total imported records: {total}', [
+                'total' => $model->importCounter,
+            ]));
             return $this->controller->redirect($this->redirectAfterImport);
         }
 
         return $this->controller->render($this->view, [
             'model' => $model,
+            'extraView' => $this->extraView,
         ]);
     }
 } 

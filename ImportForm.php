@@ -14,6 +14,7 @@ use yii\web\UploadedFile;
  * Class ImportForm
  *
  * @property array $fieldsArray
+ * @property int $importCounter
  */
 class ImportForm extends Model
 {
@@ -72,6 +73,11 @@ class ImportForm extends Model
      */
     public $afterImport;
 
+    /**
+     * @var int
+     */
+    protected $_importCounter;
+
     public function init()
     {
         if ($this->availableFields === null) {
@@ -80,6 +86,17 @@ class ImportForm extends Model
         if ($this->fields === null) {
             $this->fields = implode(', ', array_keys($this->availableFields));
         }
+    }
+
+    public function rules()
+    {
+        return [
+            [['file', 'encoding', 'fields', 'separator',], 'required'],
+            [['file'], 'file', 'extensions' => ['csv']],
+            [['skipFirstLine'], 'boolean'],
+            [['separator'], 'string', 'length' => 1],
+            [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
+        ];
     }
 
 
@@ -116,6 +133,7 @@ class ImportForm extends Model
     public function process()
     {
         if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
+            $this->_importCounter = 0;
             $lexer = new Lexer((new LexerConfig())
                     ->setDelimiter($this->separator)
                     ->setIgnoreHeaderLine($this->skipFirstLine)
@@ -126,6 +144,7 @@ class ImportForm extends Model
             $interpreter->addObserver(function ($row) {
                 $row = self::compose($row);
                 $this->callHandler('rowImport', [$this, $row]);
+                $this->_importCounter++;
             });
             $lexer->parse($this->file->tempName, $interpreter);
             $this->callHandler('afterImport', [$this]);
@@ -178,4 +197,12 @@ class ImportForm extends Model
         }
         return $result;
     }
-} 
+
+    /**
+     * @return int
+     */
+    public function getImportCounter()
+    {
+        return $this->_importCounter;
+    }
+}

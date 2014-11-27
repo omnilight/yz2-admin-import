@@ -8,6 +8,7 @@ use yz\admin\widgets\FormBox;
 
 /**
  * @var yii\web\View $this
+ * @var string $extraView
  * @var \yz\admin\import\ImportForm $model
  */
 $this->title = Yii::t('admin/import', 'Batch import');
@@ -27,6 +28,8 @@ $this->params['header'] = $this->title;
     </div>
 
     <?php $box = FormBox::begin(['cssClass' => 'batch-import-form box-primary', 'title' => '']) ?>
+    <?php $box->beginBody() ?>
+
     <?php $form = ActiveForm::begin([
         'options' => ['enctype' => 'multipart/form-data']
     ]); ?>
@@ -45,9 +48,9 @@ $this->params['header'] = $this->title;
     <?= $form->field($model, 'skipFirstLine')->checkbox() ?>
     <?= $form->field($model, 'separator')->textInput() ?>
 
-    <?php $box->beginBody() ?>
-
-
+    <?php if ($extraView): ?>
+        <?= $this->render($extraView, ['form' => $form, 'model' => $model]) ?>
+    <?php endif ?>
 
     <?php $box->endBody() ?>
 
