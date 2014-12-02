@@ -137,36 +137,41 @@ class ImportForm extends Model
 
     public function process()
     {
-        if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
-            $this->_importCounter = 0;
-            $lexer = new Lexer((new LexerConfig())
-                    ->setDelimiter($this->separator)
-                    ->setIgnoreHeaderLine($this->skipFirstLine)
-                    ->setFromCharset($this->encoding)
-                    ->setToCharset('utf8')
-            );
-            $interpreter = new Interpreter();
-            $interpreter->unstrict();
-            $interpreter->addObserver(function ($row) {
-                $row = self::compose($row);
-                $this->callHandler('rowImport', [$this, $row]);
-                $this->_importCounter++;
-            });
-            $transaction = \Yii::$app->db->beginTransaction();
-            try {
+        $transaction = \Yii::$app->db->beginTransaction();
+        try {
+            if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
+                $this->_importCounter = 0;
+                $lexer = new Lexer((new LexerConfig())
+                        ->setDelimiter($this->separator)
+                        ->setIgnoreHeaderLine($this->skipFirstLine)
+                        ->setFromCharset($this->encoding)
+                        ->setToCharset('utf8')
+                );
+                $interpreter = new Interpreter();
+                $interpreter->unstrict();
+                $interpreter->addObserver(function ($row) {
+                    $row = self::compose($row);
+                    $this->callHandler('rowImport', [$this, $row]);
+                    $this->_importCounter++;
+                });
+
                 $lexer->parse($this->file->tempName, $interpreter);
+
+                $this->callHandler('afterImport', [$this]);
+
                 $transaction->commit();
-            } catch (Exception $e) {
-                $transaction->rollBack();
-                throw $e;
+
+            } else {
+                return false;
             }
 
-            $this->callHandler('afterImport', [$this]);
-
-            return true;
-        } else {
-            return false;
+        } catch (Exception $e) {
+            $transaction->rollBack();
+            throw $e;
         }
+
+        return true;
+
     }
 
     /**
