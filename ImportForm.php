@@ -73,7 +73,10 @@ class ImportForm extends Model
      * ```
      */
     public $afterImport;
-
+    /**
+     * @var BatchImportAction
+     */
+    public $action;
     /**
      * @var int
      */

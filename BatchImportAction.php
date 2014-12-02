@@ -38,6 +38,7 @@ class BatchImportAction extends Action
         /** @var ImportForm $model */
         $model = \Yii::createObject(array_merge([
             'class' => 'yz\admin\import\ImportForm',
+            'action' => $this,
         ], $this->importConfig));
 
         if ($model->load(\Yii::$app->request->post()) && $model->process()) {
