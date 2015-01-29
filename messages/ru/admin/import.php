@@ -17,6 +17,7 @@
  * NOTE: this file must be saved in UTF-8 encoding.
  */
 return [
+    'Skip this column. Can be used multiple times' => 'Пропуск колонки. Можно использовать несколько раз',
     'All records' => 'Все записи',
     'Batch import' => 'Массовый импорт',
     'CSV file' => 'CSV-файл',

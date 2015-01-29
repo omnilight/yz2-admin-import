@@ -22,6 +22,8 @@ class ImportForm extends Model
     const ENCODING_UTF8 = 'utf8';
     const ENCODING_CP1251 = 'cp1251';
 
+    const SKIP_FIELD_NAME = 'skip';
+
     /**
      * @var UploadedFile
      */
@@ -81,6 +83,7 @@ class ImportForm extends Model
      * @var int
      */
     protected $_importCounter;
+    protected $_fieldsArray = [];
 
     public function init()
     {
@@ -90,6 +93,9 @@ class ImportForm extends Model
         if ($this->fields === null) {
             $this->fields = implode(', ', array_keys($this->availableFields));
         }
+        $this->availableFields = array_merge([
+            self::SKIP_FIELD_NAME => \Yii::t('admin/import', 'Skip this column. Can be used multiple times')
+        ], $this->availableFields);
     }
 
     public function rules()
@@ -103,6 +109,13 @@ class ImportForm extends Model
         ];
     }
 
+    public static function getEncodingValues()
+    {
+        return [
+            self::ENCODING_CP1251 => \Yii::t('admin/import', 'Windows-1251'),
+            self::ENCODING_UTF8 => \Yii::t('admin/import', 'UTF-8'),
+        ];
+    }
 
     public function attributeLabels()
     {
@@ -112,16 +125,6 @@ class ImportForm extends Model
             'fields' => \Yii::t('admin/import', 'Fields'),
             'skipFirstLine' => \Yii::t('admin/import', 'Skip first line'),
             'separator' => \Yii::t('admin/import', 'Separator'),
-        ];
-    }
-
-
-    public static function getEncodingValues()
-    {
-
-        return [
-            self::ENCODING_CP1251 => \Yii::t('admin/import', 'Windows-1251'),
-            self::ENCODING_UTF8 => \Yii::t('admin/import', 'UTF-8'),
         ];
     }
 
@@ -142,10 +145,10 @@ class ImportForm extends Model
             if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
                 $this->_importCounter = 0;
                 $lexer = new Lexer((new LexerConfig())
-                        ->setDelimiter($this->separator)
-                        ->setIgnoreHeaderLine($this->skipFirstLine)
-                        ->setFromCharset($this->encoding)
-                        ->setToCharset('utf8')
+                    ->setDelimiter($this->separator)
+                    ->setIgnoreHeaderLine($this->skipFirstLine)
+                    ->setFromCharset($this->encoding)
+                    ->setToCharset('utf8')
                 );
                 $interpreter = new Interpreter();
                 $interpreter->unstrict();
@@ -181,23 +184,11 @@ class ImportForm extends Model
      */
     protected function callHandler($handler, $data)
     {
-        if ($this->{$handler} === null)
+        if ($this->{$handler} === null) {
             return true;
+        }
 
         return call_user_func_array($this->{$handler}, $data);
-    }
-
-    protected $_fieldsArray = [];
-
-    /**
-     * @return array
-     */
-    public function getFieldsArray()
-    {
-        if (!isset($this->_fieldsArray[$this->fields])) {
-            $this->_fieldsArray[$this->fields] = preg_split('/\s*[,;]\s*/', $this->fields, -1, PREG_SPLIT_NO_EMPTY);
-        }
-        return $this->_fieldsArray[$this->fields];
     }
 
     /**
@@ -208,6 +199,9 @@ class ImportForm extends Model
     {
         $result = [];
         foreach ($this->fieldsArray as $id => $name) {
+            if ($name == self::SKIP_FIELD_NAME) {
+                continue;
+            }
             if (isset($row[$id])) {
                 $result[$name] = $row[$id];
             } else {
@@ -215,6 +209,17 @@ class ImportForm extends Model
             }
         }
         return $result;
+    }
+
+    /**
+     * @return array
+     */
+    public function getFieldsArray()
+    {
+        if (!array_key_exists($this->fields, $this->_fieldsArray)) {
+            $this->_fieldsArray[$this->fields] = preg_split('/\s*[,;]\s*/', $this->fields, -1, PREG_SPLIT_NO_EMPTY);
+        }
+        return $this->_fieldsArray[$this->fields];
     }
 
     /**
