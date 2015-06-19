@@ -84,6 +84,10 @@ class ImportForm extends Model
      */
     protected $_importCounter;
     protected $_fieldsArray = [];
+    /**
+     * @var string
+     */
+    protected $_errorMessage = null;
 
     public function init()
     {
@@ -140,6 +144,8 @@ class ImportForm extends Model
 
     public function process()
     {
+        $this->_errorMessage = null;
+
         $transaction = \Yii::$app->db->beginTransaction();
         try {
             if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
@@ -168,9 +174,10 @@ class ImportForm extends Model
                 return false;
             }
 
-        } catch (Exception $e) {
+        } catch (InterruptImportException $e) {
             $transaction->rollBack();
-            throw $e;
+            $this->_errorMessage = $e->getMessage();
+            return false;
         }
 
         return true;
@@ -228,5 +235,18 @@ class ImportForm extends Model
     public function getImportCounter()
     {
         return $this->_importCounter;
+    }
+
+    /**
+     * @return string
+     */
+    public function getErrorMessage()
+    {
+        return $this->_errorMessage;
+    }
+
+    public function hasErrorMessage()
+    {
+        return $this->_errorMessage !== null;
     }
 }
