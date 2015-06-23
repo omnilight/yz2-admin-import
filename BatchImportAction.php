@@ -48,6 +48,10 @@ class BatchImportAction extends Action
             return $this->controller->redirect($this->redirectAfterImport);
         }
 
+        if ($model->hasErrorMessage()) {
+            \Yii::$app->session->setFlash(Yz::FLASH_ERROR, $model->getErrorMessage());
+        }
+
         return $this->controller->render($this->view, [
             'model' => $model,
             'extraView' => $this->extraView,
