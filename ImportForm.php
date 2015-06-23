@@ -87,7 +87,8 @@ class ImportForm extends Model
     /**
      * @var string
      */
-    protected $_errorMessage = null;
+    private $_errorMessage = null;
+    private $_errorRow = [];
 
     public function init()
     {
@@ -145,6 +146,7 @@ class ImportForm extends Model
     public function process()
     {
         $this->_errorMessage = null;
+        $this->_errorRow = [];
 
         $transaction = \Yii::$app->db->beginTransaction();
         try {
@@ -177,6 +179,7 @@ class ImportForm extends Model
         } catch (InterruptImportException $e) {
             $transaction->rollBack();
             $this->_errorMessage = $e->getMessage();
+            $this->_errorRow = $e->row;
             return false;
         }
 
@@ -248,5 +251,13 @@ class ImportForm extends Model
     public function hasErrorMessage()
     {
         return $this->_errorMessage !== null;
+    }
+
+    /**
+     * @return array
+     */
+    public function getErrorRow()
+    {
+        return $this->_errorRow;
     }
 }

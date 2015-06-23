@@ -17,6 +17,7 @@
  * NOTE: this file must be saved in UTF-8 encoding.
  */
 return [
+    'Row caused error: {row}' => 'Строка, приведшая к ошибке: {row}',
     'Skip this column. Can be used multiple times' => 'Пропуск колонки. Можно использовать несколько раз',
     'All records' => 'Все записи',
     'Batch import' => 'Массовый импорт',

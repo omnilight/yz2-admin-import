@@ -50,6 +50,12 @@ class BatchImportAction extends Action
 
         if ($model->hasErrorMessage()) {
             \Yii::$app->session->setFlash(Yz::FLASH_ERROR, $model->getErrorMessage());
+            $row = $model->getErrorRow();
+            if ($row != []) {
+                \Yii::$app->session->setFlash(Yz::FLASH_INFO, \Yii::t('admin/import', 'Row caused error: {row}', [
+                    'row' => implode('; ', $row)
+                ]));
+            }
         }
 
         return $this->controller->render($this->view, [
