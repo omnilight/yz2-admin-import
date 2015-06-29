@@ -150,25 +150,23 @@ class ImportForm extends Model
 
         $transaction = \Yii::$app->db->beginTransaction();
         try {
-            if ($this->validate() && $this->callHandler('beforeImport', [$this])) {
+            if ($this->validate() && $this->beforeImport()) {
                 $this->_importCounter = 0;
-                $lexer = new Lexer((new LexerConfig())
-                    ->setDelimiter($this->separator)
-                    ->setIgnoreHeaderLine($this->skipFirstLine)
-                    ->setFromCharset($this->encoding)
-                    ->setToCharset('utf8')
-                );
-                $interpreter = new Interpreter();
-                $interpreter->unstrict();
+
+                $lexer = $this->getLexer();
+                $interpreter = $this->getInterpreter();
+
                 $interpreter->addObserver(function ($row) {
-                    $row = self::compose($row);
-                    $this->callHandler('rowImport', [$this, $row]);
+                    $row = $this->compose($row);
+
+                    $this->rowImport($row);
+
                     $this->_importCounter++;
                 });
 
                 $lexer->parse($this->file->tempName, $interpreter);
 
-                $this->callHandler('afterImport', [$this]);
+                $this->afterImport();
 
                 $transaction->commit();
 
@@ -187,18 +185,31 @@ class ImportForm extends Model
 
     }
 
-    /**
-     * @param callable $handler
-     * @param array $data
-     * @return bool
-     */
-    protected function callHandler($handler, $data)
+    protected function rowImport($row)
     {
-        if ($this->{$handler} === null) {
+        if ($this->rowImport === null) {
             return true;
         }
 
-        return call_user_func_array($this->{$handler}, $data);
+        return call_user_func($this->rowImport, $this, $row);
+    }
+
+    protected function beforeImport()
+    {
+        if ($this->beforeImport === null) {
+            return true;
+        }
+
+        return call_user_func($this->beforeImport, $this);
+    }
+
+    protected function afterImport()
+    {
+        if ($this->afterImport === null) {
+            return;
+        }
+
+        call_user_func($this->afterImport, $this);
     }
 
     /**
@@ -259,5 +270,29 @@ class ImportForm extends Model
     public function getErrorRow()
     {
         return $this->_errorRow;
+    }
+
+    /**
+     * @return Lexer
+     */
+    protected function getLexer()
+    {
+        $lexer = new Lexer((new LexerConfig())
+            ->setDelimiter($this->separator)
+            ->setIgnoreHeaderLine($this->skipFirstLine)
+            ->setFromCharset($this->encoding)
+            ->setToCharset('utf8')
+        );
+        return $lexer;
+    }
+
+    /**
+     * @return Interpreter
+     */
+    protected function getInterpreter()
+    {
+        $interpreter = new Interpreter();
+        $interpreter->unstrict();
+        return $interpreter;
     }
 }
