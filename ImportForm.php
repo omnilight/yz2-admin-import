@@ -89,6 +89,10 @@ class ImportForm extends Model
      */
     private $_errorMessage = null;
     private $_errorRow = [];
+    /**
+     * @var array
+     */
+    private $_skippedRows = [];
 
     public function init()
     {
@@ -152,16 +156,23 @@ class ImportForm extends Model
         try {
             if ($this->validate() && $this->beforeImport()) {
                 $this->_importCounter = 0;
+                $this->_skippedRows = [];
 
                 $lexer = $this->getLexer();
                 $interpreter = $this->getInterpreter();
 
                 $interpreter->addObserver(function ($row) {
-                    $row = $this->compose($row);
-
-                    $this->rowImport($row);
-
-                    $this->_importCounter++;
+                    try {
+                        $row = $this->compose($row);
+                        $this->rowImport($row);
+                        $this->_importCounter++;
+                    } catch (SkipRowException $e) {
+                        $row = $e->row ? $e->row : $row;
+                        $this->_skippedRows[] = [$e->getMessage(), $row];
+                    } catch (InterruptImportException $e) {
+                        $e->row = $e->row ? $e->row : $row;
+                        throw $e;
+                    }
                 });
 
                 $lexer->parse($this->file->tempName, $interpreter);
@@ -294,5 +305,21 @@ class ImportForm extends Model
         $interpreter = new Interpreter();
         $interpreter->unstrict();
         return $interpreter;
+    }
+
+    /**
+     * @return array
+     */
+    public function getSkippedRows()
+    {
+        return $this->_skippedRows;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasSkippedRows()
+    {
+        return count($this->_skippedRows) > 0;
     }
 }
