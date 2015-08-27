@@ -5,9 +5,12 @@ namespace yz\admin\import;
 use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
-use yii\base\Exception;
+use PHPExcel\Cell;
+use PHPExcel\IOFactory;
+use PHPExcel\Reader\Exception as PHPExcelReaderException;
 use yii\base\InvalidConfigException;
 use yii\base\Model;
+use yii\helpers\FileHelper;
 use yii\web\UploadedFile;
 
 
@@ -111,7 +114,7 @@ class ImportForm extends Model
     {
         return [
             [['file', 'encoding', 'fields', 'separator',], 'required'],
-            [['file'], 'file', 'extensions' => ['csv'], 'checkExtensionByMimeType' => false],
+            [['file'], 'file', 'extensions' => ['csv', 'xls', 'xlsx'], 'checkExtensionByMimeType' => false],
             [['skipFirstLine'], 'boolean'],
             [['separator'], 'string', 'length' => 1],
             [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
@@ -129,7 +132,7 @@ class ImportForm extends Model
     public function attributeLabels()
     {
         return [
-            'file' => \Yii::t('admin/import', 'CSV file'),
+            'file' => \Yii::t('admin/import', 'Excel/CSV file'),
             'encoding' => \Yii::t('admin/import', 'Encoding'),
             'fields' => \Yii::t('admin/import', 'Fields'),
             'skipFirstLine' => \Yii::t('admin/import', 'Skip first line'),
@@ -155,27 +158,12 @@ class ImportForm extends Model
         $transaction = \Yii::$app->db->beginTransaction();
         try {
             if ($this->validate() && $this->beforeImport()) {
-                $this->_importCounter = 0;
-                $this->_skippedRows = [];
 
-                $lexer = $this->getLexer();
-                $interpreter = $this->getInterpreter();
-
-                $interpreter->addObserver(function ($row) {
-                    try {
-                        $row = $this->compose($row);
-                        $this->rowImport($row);
-                        $this->_importCounter++;
-                    } catch (SkipRowException $e) {
-                        $row = $e->row ? $e->row : $row;
-                        $this->_skippedRows[] = [$e->getMessage(), $row];
-                    } catch (InterruptImportException $e) {
-                        $e->row = $e->row ? $e->row : $row;
-                        throw $e;
-                    }
-                });
-
-                $lexer->parse($this->file->tempName, $interpreter);
+                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
+                    $this->importCsv();
+                } else {
+                    $this->importExcel();
+                }
 
                 $this->afterImport();
 
@@ -196,15 +184,6 @@ class ImportForm extends Model
 
     }
 
-    protected function rowImport($row)
-    {
-        if ($this->rowImport === null) {
-            return true;
-        }
-
-        return call_user_func($this->rowImport, $this, $row);
-    }
-
     protected function beforeImport()
     {
         if ($this->beforeImport === null) {
@@ -221,26 +200,6 @@ class ImportForm extends Model
         }
 
         call_user_func($this->afterImport, $this);
-    }
-
-    /**
-     * @param array $row
-     * @return array
-     */
-    protected function compose($row)
-    {
-        $result = [];
-        foreach ($this->fieldsArray as $id => $name) {
-            if ($name == self::SKIP_FIELD_NAME) {
-                continue;
-            }
-            if (isset($row[$id])) {
-                $result[$name] = $row[$id];
-            } else {
-                $result[$name] = null;
-            }
-        }
-        return $result;
     }
 
     /**
@@ -284,6 +243,47 @@ class ImportForm extends Model
     }
 
     /**
+     * @return array
+     */
+    public function getSkippedRows()
+    {
+        return $this->_skippedRows;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasSkippedRows()
+    {
+        return count($this->_skippedRows) > 0;
+    }
+
+    private function importCsv()
+    {
+        $this->_importCounter = 0;
+        $this->_skippedRows = [];
+
+        $lexer = $this->getLexer();
+        $interpreter = $this->getInterpreter();
+
+        $interpreter->addObserver(function ($row) {
+            try {
+                $row = $this->compose($row);
+                $this->rowImport($row);
+                $this->_importCounter++;
+            } catch (SkipRowException $e) {
+                $row = $e->row ? $e->row : $row;
+                $this->_skippedRows[] = [$e->getMessage(), $row];
+            } catch (InterruptImportException $e) {
+                $e->row = $e->row ? $e->row : $row;
+                throw $e;
+            }
+        });
+
+        $lexer->parse($this->file->tempName, $interpreter);
+    }
+
+    /**
      * @return Lexer
      */
     protected function getLexer()
@@ -308,18 +308,72 @@ class ImportForm extends Model
     }
 
     /**
+     * @param array $row
      * @return array
      */
-    public function getSkippedRows()
+    protected function compose($row)
     {
-        return $this->_skippedRows;
+        $result = [];
+        foreach ($this->fieldsArray as $id => $name) {
+            if ($name == self::SKIP_FIELD_NAME) {
+                continue;
+            }
+            if (isset($row[$id])) {
+                $result[$name] = $row[$id];
+            } else {
+                $result[$name] = null;
+            }
+        }
+        return $result;
+    }
+
+    protected function rowImport($row)
+    {
+        if ($this->rowImport === null) {
+            return true;
+        }
+
+        return call_user_func($this->rowImport, $this, $row);
     }
 
     /**
-     * @return bool
+     * @throws InterruptImportException
+     * @throws \Exception
+     * @throws \PHPExcel\Exception
      */
-    public function hasSkippedRows()
+    private function importExcel()
     {
-        return count($this->_skippedRows) > 0;
+        $this->_importCounter = 0;
+        $this->_skippedRows = [];
+
+        try {
+            $objPhpExcel = IOFactory::load($this->file->tempName);
+            $worksheet = $objPhpExcel->getActiveSheet();
+
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            $highestColumnIndex = Cell::columnIndexFromString($highestColumn);
+
+            for ($row = 0; $row < $highestRow; $row++) {
+                $row = [];
+                for ($col = 0; $col < $highestColumnIndex; $col++) {
+                    $cell = $worksheet->getCellByColumnAndRow($col, $row);
+                    $row[] = $cell->getValue();
+                }
+                try {
+                    $row = $this->compose($row);
+                    $this->rowImport($row);
+                    $this->_importCounter++;
+                } catch (SkipRowException $e) {
+                    $row = $e->row ? $e->row : $row;
+                    $this->_skippedRows[] = [$e->getMessage(), $row];
+                } catch (InterruptImportException $e) {
+                    $e->row = $e->row ? $e->row : $row;
+                    throw $e;
+                }
+            }
+        } catch (PHPExcelReaderException $e) {
+            throw new InterruptImportException('Ошибка при импорте файла: ' . $e->getMessage());
+        }
     }
 }

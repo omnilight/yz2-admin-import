@@ -19,7 +19,7 @@
     "php": ">=5.4.0",
     "yiisoft/yii2": "*",
     "goodby/csv": "^1.2",
-    "phpoffice/phpexcel": "^1.7"
+    "phpoffice/phpexcel": "~1.7"
   },
   "autoload": {
     "psr-4": {

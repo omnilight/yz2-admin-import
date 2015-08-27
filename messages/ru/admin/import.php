@@ -21,7 +21,7 @@ return [
     'Skip this column. Can be used multiple times' => 'Пропуск колонки. Можно использовать несколько раз',
     'All records' => 'Все записи',
     'Batch import' => 'Массовый импорт',
-    'CSV file' => 'CSV-файл',
+    'Excel/CSV file' => 'Excel или CSV файл',
     'Encoding' => 'Кодировка',
     'Fields' => 'Поля',
     'Separator' => 'Разделитель',
