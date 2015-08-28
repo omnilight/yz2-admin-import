@@ -31,4 +31,5 @@ return [
     'Windows-1251' => '',
     'Import have been done successfully. Total imported records: {total}' => 'Импорт успешно завершен. Всего импортировано записей: {total}',
     'Available fields:' => 'Доступные поля: ',
+    'Only suitable for CSV files, ignored for Excel files' => 'Используется только для файлов CSV, для файлов Excel - игнорируется'
 ];

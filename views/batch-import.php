@@ -46,7 +46,9 @@ $this->params['header'] = $this->title;
     ?>
     <?= $form->field($model, 'fields')->hint($hint)->textInput() ?>
     <?= $form->field($model, 'skipFirstLine')->checkbox() ?>
-    <?= $form->field($model, 'separator')->textInput() ?>
+    <?= $form->field($model, 'separator')->textInput()
+        ->hint(Yii::t('admin/import', 'Only suitable for CSV files, ignored for Excel files'))
+    ?>
 
     <?php if ($extraView): ?>
         <?= $this->render($extraView, ['form' => $form, 'model' => $model]) ?>

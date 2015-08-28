@@ -5,9 +5,6 @@ namespace yz\admin\import;
 use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
-use PHPExcel\Cell;
-use PHPExcel\IOFactory;
-use PHPExcel\Reader\Exception as PHPExcelReaderException;
 use yii\base\InvalidConfigException;
 use yii\base\Model;
 use yii\helpers\FileHelper;
@@ -114,7 +111,7 @@ class ImportForm extends Model
     {
         return [
             [['file', 'encoding', 'fields', 'separator',], 'required'],
-            [['file'], 'file', 'extensions' => ['csv',/* 'xls', 'xlsx'*/], 'checkExtensionByMimeType' => false],
+            [['file'], 'file', 'extensions' => ['csv', 'xls', 'xlsx'], 'checkExtensionByMimeType' => false],
             [['skipFirstLine'], 'boolean'],
             [['separator'], 'string', 'length' => 1],
             [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
@@ -159,11 +156,11 @@ class ImportForm extends Model
         try {
             if ($this->validate() && $this->beforeImport()) {
 
-//                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
+                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
                     $this->importCsv();
-//                } else {
-//                    $this->importExcel();
-//                }
+                } else {
+                    $this->importExcel();
+                }
 
                 $this->afterImport();
 
@@ -191,71 +188,6 @@ class ImportForm extends Model
         }
 
         return call_user_func($this->beforeImport, $this);
-    }
-
-    protected function afterImport()
-    {
-        if ($this->afterImport === null) {
-            return;
-        }
-
-        call_user_func($this->afterImport, $this);
-    }
-
-    /**
-     * @return array
-     */
-    public function getFieldsArray()
-    {
-        if (!array_key_exists($this->fields, $this->_fieldsArray)) {
-            $this->_fieldsArray[$this->fields] = preg_split('/\s*[,;]\s*/', $this->fields, -1, PREG_SPLIT_NO_EMPTY);
-        }
-        return $this->_fieldsArray[$this->fields];
-    }
-
-    /**
-     * @return int
-     */
-    public function getImportCounter()
-    {
-        return $this->_importCounter;
-    }
-
-    /**
-     * @return string
-     */
-    public function getErrorMessage()
-    {
-        return $this->_errorMessage;
-    }
-
-    public function hasErrorMessage()
-    {
-        return $this->_errorMessage !== null;
-    }
-
-    /**
-     * @return array
-     */
-    public function getErrorRow()
-    {
-        return $this->_errorRow;
-    }
-
-    /**
-     * @return array
-     */
-    public function getSkippedRows()
-    {
-        return $this->_skippedRows;
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasSkippedRows()
-    {
-        return count($this->_skippedRows) > 0;
     }
 
     private function importCsv()
@@ -339,7 +271,6 @@ class ImportForm extends Model
     /**
      * @throws InterruptImportException
      * @throws \Exception
-     * @throws \PHPExcel\Exception
      */
     private function importExcel()
     {
@@ -347,33 +278,98 @@ class ImportForm extends Model
         $this->_skippedRows = [];
 
         try {
-            $objPhpExcel = IOFactory::load($this->file->tempName);
+            $objPhpExcel = \PHPExcel_IOFactory::load($this->file->tempName);
             $worksheet = $objPhpExcel->getActiveSheet();
 
             $highestRow = $worksheet->getHighestRow();
             $highestColumn = $worksheet->getHighestColumn();
-            $highestColumnIndex = Cell::columnIndexFromString($highestColumn);
+            $highestColumnIndex = \PHPExcel_Cell::columnIndexFromString($highestColumn);
 
             for ($row = 0; $row < $highestRow; $row++) {
-                $row = [];
+                $dataRow = [];
                 for ($col = 0; $col < $highestColumnIndex; $col++) {
-                    $cell = $worksheet->getCellByColumnAndRow($col, $row);
-                    $row[] = $cell->getValue();
+                    $cell = $worksheet->getCellByColumnAndRow($col, $row+1);
+                    $dataRow[] = $cell->getValue();
                 }
                 try {
-                    $row = $this->compose($row);
-                    $this->rowImport($row);
+                    $dataRow = $this->compose($dataRow);
+                    $this->rowImport($dataRow);
                     $this->_importCounter++;
                 } catch (SkipRowException $e) {
-                    $row = $e->row ? $e->row : $row;
-                    $this->_skippedRows[] = [$e->getMessage(), $row];
+                    $dataRow = $e->row ? $e->row : $dataRow;
+                    $this->_skippedRows[] = [$e->getMessage(), $dataRow];
                 } catch (InterruptImportException $e) {
-                    $e->row = $e->row ? $e->row : $row;
+                    $e->row = $e->row ? $e->row : $dataRow;
                     throw $e;
                 }
             }
-        } catch (PHPExcelReaderException $e) {
+        } catch (\PHPExcel_Reader_Exception $e) {
             throw new InterruptImportException('Ошибка при импорте файла: ' . $e->getMessage());
         }
+    }
+
+    protected function afterImport()
+    {
+        if ($this->afterImport === null) {
+            return;
+        }
+
+        call_user_func($this->afterImport, $this);
+    }
+
+    /**
+     * @return array
+     */
+    public function getFieldsArray()
+    {
+        if (!array_key_exists($this->fields, $this->_fieldsArray)) {
+            $this->_fieldsArray[$this->fields] = preg_split('/\s*[,;]\s*/', $this->fields, -1, PREG_SPLIT_NO_EMPTY);
+        }
+        return $this->_fieldsArray[$this->fields];
+    }
+
+    /**
+     * @return int
+     */
+    public function getImportCounter()
+    {
+        return $this->_importCounter;
+    }
+
+    /**
+     * @return string
+     */
+    public function getErrorMessage()
+    {
+        return $this->_errorMessage;
+    }
+
+    public function hasErrorMessage()
+    {
+        return $this->_errorMessage !== null;
+    }
+
+    /**
+     * @return array
+     */
+    public function getErrorRow()
+    {
+        return $this->_errorRow;
+    }
+
+    /**
+     * @return array
+     */
+    public function getSkippedRows()
+    {
+        return $this->_skippedRows;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasSkippedRows()
+    {
+        return count($this->_skippedRows) > 0;
     }
 }
