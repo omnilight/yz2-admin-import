@@ -114,7 +114,7 @@ class ImportForm extends Model
     {
         return [
             [['file', 'encoding', 'fields', 'separator',], 'required'],
-            [['file'], 'file', 'extensions' => ['csv', 'xls', 'xlsx'], 'checkExtensionByMimeType' => false],
+            [['file'], 'file', 'extensions' => ['csv',/* 'xls', 'xlsx'*/], 'checkExtensionByMimeType' => false],
             [['skipFirstLine'], 'boolean'],
             [['separator'], 'string', 'length' => 1],
             [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
@@ -159,11 +159,11 @@ class ImportForm extends Model
         try {
             if ($this->validate() && $this->beforeImport()) {
 
-                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
+//                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
                     $this->importCsv();
-                } else {
-                    $this->importExcel();
-                }
+//                } else {
+//                    $this->importExcel();
+//                }
 
                 $this->afterImport();
 
