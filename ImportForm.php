@@ -156,7 +156,7 @@ class ImportForm extends Model
         try {
             if ($this->validate() && $this->beforeImport()) {
 
-                if (FileHelper::getMimeTypeByExtension($this->file->extension) == 'text/csv') {
+                if (FileHelper::getMimeTypeByExtension($this->file->name) == 'text/csv') {
                     $this->importCsv();
                 } else {
                     $this->importExcel();
