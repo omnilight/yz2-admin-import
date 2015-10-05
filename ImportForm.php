@@ -285,7 +285,9 @@ class ImportForm extends Model
             $highestColumn = $worksheet->getHighestColumn();
             $highestColumnIndex = \PHPExcel_Cell::columnIndexFromString($highestColumn);
 
-            for ($row = 0; $row < $highestRow; $row++) {
+            $startRow = $this->skipFirstLine ? 1 : 0;
+
+            for ($row = $startRow; $row < $highestRow; $row++) {
                 $dataRow = [];
                 for ($col = 0; $col < $highestColumnIndex; $col++) {
                     $cell = $worksheet->getCellByColumnAndRow($col, $row+1);
