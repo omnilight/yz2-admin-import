@@ -12,7 +12,7 @@ class InterruptImportException extends Exception
     /**
      * @var array Row where error was happening
      */
-    public $row;
+    public $row = [];
 
     public function __construct($message = "", $row = [], $code = 0, \Exception $previous = null)
     {
