@@ -5,9 +5,11 @@ namespace yz\admin\import;
 use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
+use yii\base\InvalidCallException;
 use yii\base\InvalidConfigException;
 use yii\base\Model;
 use yii\helpers\FileHelper;
+use yii\helpers\Json;
 use yii\web\UploadedFile;
 
 
@@ -23,7 +25,9 @@ class ImportForm extends Model
     const ENCODING_CP1251 = 'cp1251';
 
     const SKIP_FIELD_NAME = 'skip';
-
+    const PROCESS_TYPE_CSV = 'csv';
+    const PROCESS_TYPE_EXCEL = 'excel';
+    const PROCESS_TYPE_JSON = 'json';
     /**
      * @var UploadedFile
      */
@@ -80,6 +84,11 @@ class ImportForm extends Model
      */
     public $action;
     /**
+     * List of extensions that are allowed
+     * @var array
+     */
+    protected $allowedExtensions = ['csv', 'xls', 'xlsx'];
+    /**
      * @var int
      */
     protected $_importCounter;
@@ -111,7 +120,7 @@ class ImportForm extends Model
     {
         return [
             [['file', 'encoding', 'fields', 'separator',], 'required'],
-            [['file'], 'file', 'extensions' => ['csv', 'xls', 'xlsx'], 'checkExtensionByMimeType' => false],
+            [['file'], 'file', 'extensions' => $this->allowedExtensions, 'checkExtensionByMimeType' => false],
             [['skipFirstLine'], 'boolean'],
             [['separator'], 'string', 'length' => 1],
             [['encoding'], 'in', 'range' => array_keys(self::getEncodingValues())],
@@ -156,10 +165,18 @@ class ImportForm extends Model
         try {
             if ($this->validate() && $this->beforeImport()) {
 
-                if (FileHelper::getMimeTypeByExtension($this->file->name) == 'text/csv') {
-                    $this->importCsv();
-                } else {
-                    $this->importExcel();
+                switch ($this->getProcessType()) {
+                    case self::PROCESS_TYPE_CSV:
+                        $this->importCsv();
+                        break;
+                    case self::PROCESS_TYPE_EXCEL:
+                        $this->importExcel();
+                        break;
+                    case self::PROCESS_TYPE_JSON:
+                        $this->importJson();
+                        break;
+                    default:
+                        throw new InvalidCallException('Unknown process type');
                 }
 
                 $this->afterImport();
@@ -188,6 +205,15 @@ class ImportForm extends Model
         }
 
         return call_user_func($this->beforeImport, $this);
+    }
+
+    protected function getProcessType()
+    {
+        if (FileHelper::getMimeTypeByExtension($this->file->name) == 'text/csv') {
+            return self::PROCESS_TYPE_CSV;
+        } else {
+            return self::PROCESS_TYPE_EXCEL;
+        }
     }
 
     private function importCsv()
@@ -290,7 +316,7 @@ class ImportForm extends Model
             for ($row = $startRow; $row < $highestRow; $row++) {
                 $dataRow = [];
                 for ($col = 0; $col < $highestColumnIndex; $col++) {
-                    $cell = $worksheet->getCellByColumnAndRow($col, $row+1);
+                    $cell = $worksheet->getCellByColumnAndRow($col, $row + 1);
                     $dataRow[] = $cell->getValue();
                 }
                 try {
@@ -302,6 +328,34 @@ class ImportForm extends Model
                     $this->_skippedRows[] = [$e->getMessage(), $dataRow];
                 } catch (InterruptImportException $e) {
                     $e->row = $e->row ? $e->row : $dataRow;
+                    throw $e;
+                }
+            }
+        } catch (\PHPExcel_Reader_Exception $e) {
+            throw new InterruptImportException('Ошибка при импорте файла: ' . $e->getMessage());
+        }
+    }
+
+    private function importJson()
+    {
+        $this->_importCounter = 0;
+        $this->_skippedRows = [];
+
+        try {
+            $data = Json::decode(file_get_contents($this->file->tempName));
+
+            foreach ($data as $row) {
+                if (empty($row)) {
+                    continue;
+                }
+                try {
+                    $this->rowImport($row);
+                    $this->_importCounter++;
+                } catch (SkipRowException $e) {
+                    $dataRow = $e->row ? $e->row : $row;
+                    $this->_skippedRows[] = [$e->getMessage(), $dataRow];
+                } catch (InterruptImportException $e) {
+                    $e->row = $e->row ? $e->row : $row;
                     throw $e;
                 }
             }
