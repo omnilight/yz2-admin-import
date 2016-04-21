@@ -24,6 +24,10 @@ class ImportForm extends Model implements ImporterInterface
     use Importer;
 
     /**
+     * @var BatchImportAction
+     */
+    public $action;
+    /**
      * @var UploadedFile
      */
     public $file;
