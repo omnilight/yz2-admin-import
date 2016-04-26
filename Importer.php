@@ -7,12 +7,12 @@
  */
 
 namespace yz\admin\import;
+
 use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
 use yii\base\InvalidCallException;
 use yii\base\InvalidConfigException;
-use yii\helpers\FileHelper;
 use yii\helpers\Json;
 
 
@@ -160,7 +160,7 @@ trait Importer
     protected function getProcessType()
     {
         /** @var Importer | ImporterInterface $this */
-        if (FileHelper::getMimeTypeByExtension($this->getImportedFileName()) == 'text/csv') {
+        if ($this->getImportedMime() == 'text/csv') {
             return ImporterInterface::PROCESS_TYPE_CSV;
         } else {
             return ImporterInterface::PROCESS_TYPE_EXCEL;

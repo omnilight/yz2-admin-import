@@ -96,4 +96,14 @@ class ImportForm extends Model implements ImporterInterface
     {
         return $this->file->tempName;
     }
+
+
+    /**
+     * Returns MIME of the file
+     * @return string
+     */
+    public function getImportedMime()
+    {
+        return FileHelper::getMimeTypeByExtension($this->file->name);
+    }
 }

@@ -27,4 +27,10 @@ interface ImporterInterface
      * @return string
      */
     public function getImportedFileName();
+
+    /**
+     * Returns MIME of the file
+     * @return string
+     */
+    public function getImportedMime();
 }

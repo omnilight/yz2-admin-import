@@ -3,6 +3,7 @@
 namespace yz\admin\import;
 
 use yii\base\Component;
+use yii\helpers\FileHelper;
 
 
 /**
@@ -39,5 +40,14 @@ class ImportCommand extends Component implements ImporterInterface
         if (is_callable($this->output)) {
             call_user_func($this->output, $this);
         }
+    }
+
+    /**
+     * Returns MIME of the file
+     * @return string
+     */
+    public function getImportedMime()
+    {
+        return FileHelper::getMimeTypeByExtension($this->file);
     }
 }
